@@ -2,12 +2,13 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // 여러 유형의 적을 주기적으로 스폰해 플레이어 쪽으로 몰려오게 한다.
+// 플레이 영역(벽 내부)을 넘어 스폰되지 않도록 XZ 경계를 클램프한다.
 public class EnemySpawner : MonoBehaviour
 {
     [System.Serializable]
     public class SpawnEntry
     {
-        public GameObject prefab; // 스폰할 적 프리팹(또는 런타임 생성된 모델)
+        public GameObject prefab;                 // 스폰할 적 템플릿
         [Range(0f, 10f)] public float weight = 1f; // 스폰 확률 가중치
     }
 
@@ -15,16 +16,20 @@ public class EnemySpawner : MonoBehaviour
     public List<SpawnEntry> entries = new List<SpawnEntry>();
 
     [Header("스폰 주기")]
-    public float startInterval = 2.5f; // 초기 간격
-    public float minInterval   = 0.6f; // 최소 간격(난이도 상승 후)
+    public float startInterval = 2.5f;  // 초기 간격
+    public float minInterval   = 0.6f;  // 최소 간격(난이도 상승 후)
     public float rampPerSecond = 0.01f; // 초당 감소량
 
     [Header("스폰 위치")]
     public Transform player;             // 플레이어 참조(주변에 스폰)
-    public float spawnRadius   = 18f;    // 플레이어에서 얼마나 떨어진 곳에
-    public float minSpawnRadius = 12f;
-    public float groundY       = 0.5f;   // 지상형 적의 스폰 Y
-    public int   maxAlive      = 25;     // 동시 최대 생존 수
+    public float spawnRadius    = 18f;   // 플레이어로부터의 최대 스폰 거리
+    public float minSpawnRadius = 12f;   // 플레이어로부터의 최소 스폰 거리
+    public float groundY        = 0.1f;  // 지상형 적의 스폰 Y (중력으로 안착)
+    public int   maxAlive       = 25;    // 동시 최대 생존 수
+
+    [Header("플레이 영역(벽 내부)")]
+    public Vector3 playAreaMin = new Vector3(-19f, 0f, -19f); // XZ 하한
+    public Vector3 playAreaMax = new Vector3( 19f, 0f,  19f); // XZ 상한
 
     private float timer;
     private float currentInterval;
@@ -67,10 +72,18 @@ public class EnemySpawner : MonoBehaviour
         GameObject prefab = PickWeighted();
         if (prefab == null || player == null) return;
 
-        // 플레이어 주변 랜덤 링에서 위치 결정
+        // 플레이어 주변 링에서 위치 결정
         Vector2 circle = Random.insideUnitCircle.normalized * Random.Range(minSpawnRadius, spawnRadius);
         Vector3 pos = player.position + new Vector3(circle.x, 0f, circle.y);
+
+        // 벽 안쪽으로 클램프 (이 이내로 스폰되어야 벽 바깥에 갇히지 않음)
+        pos.x = Mathf.Clamp(pos.x, playAreaMin.x, playAreaMax.x);
+        pos.z = Mathf.Clamp(pos.z, playAreaMin.z, playAreaMax.z);
         pos.y = groundY;
+
+        // 클램프 후 플레이어와 너무 가까워졌다면 이번엔 스킵(억울한 피격 방지)
+        Vector3 diff = pos - player.position; diff.y = 0;
+        if (diff.magnitude < minSpawnRadius * 0.6f) return;
 
         GameObject go = Instantiate(prefab, pos, Quaternion.identity);
         go.SetActive(true);

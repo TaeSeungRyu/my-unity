@@ -33,16 +33,19 @@ public class TankEnemy : EnemyBase
             transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
     }
 
-    // 첫 스톰프 시 색상을 조금 어둡게 바꿔 체력이 남아있음을 표시
+    // 첫 스톰프 시 모든 렌더러 색상을 어둡게 바꿔 체력이 깎였음을 시각적으로 표시
     public override void OnStomped()
     {
         base.OnStomped();
-        if (!isDead && rend != null)
+        if (isDead || rends == null) return;
+
+        for (int i = 0; i < rends.Length; i++)
         {
-            Color c = originalColor * 0.6f;
+            if (rends[i] == null) continue;
+            Color c = originalColors[i] * 0.6f;
             c.a = 1f;
-            rend.material.color = c;
-            originalColor = c;
+            rends[i].material.color = c;
+            originalColors[i] = c;
         }
     }
 }
