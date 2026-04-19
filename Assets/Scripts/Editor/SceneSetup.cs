@@ -424,13 +424,11 @@ public static class SceneSetup
         foreach (var rb in visual.GetComponentsInChildren<Rigidbody>(true))
             Object.DestroyImmediate(rb);
 
-        // 스킨드 메시 = 뼈대 있는 캐릭터. 애니메이션 클립이 없어도 팔/다리가
-        // 움직이도록 루트에 간이 프로시저럴 워크 애니메이션을 부착.
-        if (visual.GetComponentInChildren<SkinnedMeshRenderer>() != null &&
-            root.GetComponent<ProceduralWalkAnimation>() == null)
-        {
+        // 어떤 형태의 모델이든(스킨드 메시든, 본-계층에 메시를 붙인 Kenney 스타일이든)
+        // 자식 Transform 이름에 arm/leg가 있으면 흔들도록 무조건 부착한다.
+        // 팔/다리 본이 없는 모델(UFO 등)에서는 컴포넌트가 Update에서 즉시 리턴해 무해함.
+        if (root.GetComponent<ProceduralWalkAnimation>() == null)
             root.AddComponent<ProceduralWalkAnimation>();
-        }
 
         return true;
     }

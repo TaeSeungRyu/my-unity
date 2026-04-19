@@ -37,6 +37,24 @@ public class ProceduralWalkAnimation : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         FindBones();
         CacheRestPoses();
+
+        // FBX에 애니메이션 클립이 내장된 경우 Unity가 자동으로 Animator를 넣는다.
+        // 컨트롤러 없는 Animator는 보통 무해하지만, 혹시 모를 간섭을 원천 차단하기 위해
+        // 본 직접 회전으로만 움직이도록 Animator는 비활성화.
+        foreach (var anim in GetComponentsInChildren<Animator>(true))
+            anim.enabled = false;
+
+        int foundCount = (armL ? 1 : 0) + (armR ? 1 : 0) + (legL ? 1 : 0) + (legR ? 1 : 0);
+        if (foundCount == 0)
+        {
+            Debug.Log($"[ProceduralWalkAnimation] '{name}': 팔/다리 본을 찾지 못함 (UFO 등 비캐릭터 모델이면 정상).");
+        }
+        else
+        {
+            Debug.Log($"[ProceduralWalkAnimation] '{name}': 본 {foundCount}개 발견 " +
+                      $"— armL={(armL ? armL.name : "-")}, armR={(armR ? armR.name : "-")}, " +
+                      $"legL={(legL ? legL.name : "-")}, legR={(legR ? legR.name : "-")}");
+        }
     }
 
     void FindBones()
@@ -90,7 +108,8 @@ public class ProceduralWalkAnimation : MonoBehaviour
         if (legR != null) legRRest = legR.localRotation;
     }
 
-    void Update()
+    // Animator가 있는 경우를 대비해 LateUpdate에서 회전 적용 (Animator 이후 실행 순서).
+    void LateUpdate()
     {
         // 뼈를 하나도 못 찾았으면 무동작(UFO 같은 비캐릭터 모델 케이스)
         if (armL == null && armR == null && legL == null && legR == null) return;
