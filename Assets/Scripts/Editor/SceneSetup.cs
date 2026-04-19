@@ -50,8 +50,11 @@ public static class SceneSetup
             light.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
         }
 
+        // ---------- 비주얼 오버라이드 에셋 (없으면 자동 생성) ----------
+        VisualOverrides overrides = LoadOrCreateOverrides();
+
         // ---------- 플레이어(복합 모양) ----------
-        GameObject player = BuildPlayer();
+        GameObject player = BuildPlayer(overrides);
 
         // ---------- 메인 카메라 + 추적 스크립트 ----------
         Camera cam = Camera.main;
@@ -73,11 +76,11 @@ public static class SceneSetup
         GameObject templates = new GameObject("EnemyTemplates");
         templates.SetActive(false);
 
-        GameObject t1 = BuildWalker(templates.transform);
-        GameObject t2 = BuildChaser(templates.transform);
-        GameObject t3 = BuildJumper(templates.transform);
-        GameObject t4 = BuildFlyer(templates.transform);
-        GameObject t5 = BuildTank(templates.transform);
+        GameObject t1 = BuildWalker(templates.transform, overrides);
+        GameObject t2 = BuildChaser(templates.transform, overrides);
+        GameObject t3 = BuildJumper(templates.transform, overrides);
+        GameObject t4 = BuildFlyer(templates.transform, overrides);
+        GameObject t5 = BuildTank(templates.transform, overrides);
 
         // ---------- 스포너 ----------
         GameObject spGo = new GameObject("EnemySpawner");
@@ -166,7 +169,7 @@ public static class SceneSetup
     // ============================================================
     // 플레이어 (복합 모양) — 캡슐 몸통 + 구 머리 + 흰자+검은 동공
     // ============================================================
-    private static GameObject BuildPlayer()
+    private static GameObject BuildPlayer(VisualOverrides overrides)
     {
         // 루트: 빈 GameObject (물리/스크립트 담당)
         GameObject player = new GameObject("Player");
@@ -184,6 +187,9 @@ public static class SceneSetup
         prb.mass = 1f;
 
         player.AddComponent<PlayerController>();
+
+        if (TryAttachVisualOverride(player, overrides != null ? overrides.playerVisual : null))
+            return player;
 
         // 시각적 자식들 (콜라이더 없음)
         Color blue  = new Color(0.25f, 0.55f, 1f);
@@ -209,13 +215,16 @@ public static class SceneSetup
     // ============================================================
 
     // ① 워커: 귀엽고 둔한 갈색 블록형
-    private static GameObject BuildWalker(Transform parent)
+    private static GameObject BuildWalker(Transform parent, VisualOverrides overrides)
     {
         GameObject g = CreateEnemyRoot("Enemy_Walker", parent);
         BoxCollider c = g.AddComponent<BoxCollider>();
         c.size = new Vector3(0.9f, 1.0f, 0.9f);
         c.center = new Vector3(0f, 0.5f, 0f);
         g.AddComponent<WalkerEnemy>();
+
+        if (TryAttachVisualOverride(g, overrides != null ? overrides.walkerVisual : null))
+            return g;
 
         Color body = new Color(0.75f, 0.45f, 0.2f);
         Color dark = new Color(0.4f, 0.22f, 0.1f);
@@ -236,7 +245,7 @@ public static class SceneSetup
     }
 
     // ② 체이서: 공격적으로 생긴 붉은 돌진형 — 캡슐 몸통 + 송곳니 느낌의 뿔
-    private static GameObject BuildChaser(Transform parent)
+    private static GameObject BuildChaser(Transform parent, VisualOverrides overrides)
     {
         GameObject g = CreateEnemyRoot("Enemy_Chaser", parent);
         CapsuleCollider c = g.AddComponent<CapsuleCollider>();
@@ -244,6 +253,9 @@ public static class SceneSetup
         c.radius = 0.35f;
         c.center = new Vector3(0f, 0.6f, 0f);
         g.AddComponent<ChaserEnemy>();
+
+        if (TryAttachVisualOverride(g, overrides != null ? overrides.chaserVisual : null))
+            return g;
 
         Color body  = new Color(0.85f, 0.2f, 0.25f);
         Color dark  = new Color(0.5f, 0.1f, 0.12f);
@@ -263,13 +275,16 @@ public static class SceneSetup
     }
 
     // ③ 점퍼: 노란 통통 구 + 안테나 + 짧은 다리
-    private static GameObject BuildJumper(Transform parent)
+    private static GameObject BuildJumper(Transform parent, VisualOverrides overrides)
     {
         GameObject g = CreateEnemyRoot("Enemy_Jumper", parent);
         SphereCollider c = g.AddComponent<SphereCollider>();
         c.radius = 0.45f;
         c.center = new Vector3(0f, 0.45f, 0f);
         g.AddComponent<JumperEnemy>();
+
+        if (TryAttachVisualOverride(g, overrides != null ? overrides.jumperVisual : null))
+            return g;
 
         Color body   = new Color(0.95f, 0.85f, 0.2f);
         Color accent = new Color(0.3f, 0.2f, 0.1f);
@@ -292,7 +307,7 @@ public static class SceneSetup
     }
 
     // ④ 플라이어: UFO — 납작 원반 + 상단 돔 + 하단 발광등
-    private static GameObject BuildFlyer(Transform parent)
+    private static GameObject BuildFlyer(Transform parent, VisualOverrides overrides)
     {
         GameObject g = CreateEnemyRoot("Enemy_Flyer", parent);
         BoxCollider c = g.AddComponent<BoxCollider>();
@@ -300,6 +315,9 @@ public static class SceneSetup
         c.center = new Vector3(0f, 0.25f, 0f);
         g.AddComponent<FlyerEnemy>();
         // FlyerEnemy.Awake에서 useGravity=false로 설정됨
+
+        if (TryAttachVisualOverride(g, overrides != null ? overrides.flyerVisual : null))
+            return g;
 
         Color body = new Color(0.55f, 0.35f, 0.85f);
         Color dome = new Color(0.8f, 0.85f, 1f);
@@ -317,7 +335,7 @@ public static class SceneSetup
     }
 
     // ⑤ 탱크: 우람한 회색 몸체 + 상단 터렛 + 포신 + 모서리 스파이크
-    private static GameObject BuildTank(Transform parent)
+    private static GameObject BuildTank(Transform parent, VisualOverrides overrides)
     {
         GameObject g = CreateEnemyRoot("Enemy_Tank", parent);
         BoxCollider c = g.AddComponent<BoxCollider>();
@@ -326,6 +344,9 @@ public static class SceneSetup
         Rigidbody rb = g.GetComponent<Rigidbody>();
         rb.mass = 4f;
         g.AddComponent<TankEnemy>();
+
+        if (TryAttachVisualOverride(g, overrides != null ? overrides.tankVisual : null))
+            return g;
 
         Color body   = new Color(0.45f, 0.47f, 0.5f);
         Color dark   = new Color(0.28f, 0.29f, 0.32f);
@@ -360,6 +381,50 @@ public static class SceneSetup
         rb.constraints = RigidbodyConstraints.FreezeRotation;
         rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
         return root;
+    }
+
+    // ============================================================
+    // 비주얼 오버라이드 지원
+    // ============================================================
+
+    // VisualOverrides.asset을 로드하거나, 없으면 Assets/Prefabs/ 아래에 자동 생성.
+    private static VisualOverrides LoadOrCreateOverrides()
+    {
+        const string path = "Assets/Prefabs/VisualOverrides.asset";
+        VisualOverrides vo = AssetDatabase.LoadAssetAtPath<VisualOverrides>(path);
+        if (vo != null) return vo;
+
+        if (!AssetDatabase.IsValidFolder("Assets/Prefabs"))
+            AssetDatabase.CreateFolder("Assets", "Prefabs");
+
+        vo = ScriptableObject.CreateInstance<VisualOverrides>();
+        AssetDatabase.CreateAsset(vo, path);
+        AssetDatabase.SaveAssets();
+        Debug.Log("[SceneSetup] VisualOverrides.asset 생성됨: " + path +
+                  "\n임포트한 모델 Prefab을 슬롯에 드래그한 뒤 다시 'Tools > Setup Game Scene'을 실행하면 외형이 교체됩니다.");
+        return vo;
+    }
+
+    // 오버라이드 Prefab이 지정되어 있으면 루트 자식으로 붙이고 콜라이더 제거.
+    // 반환값: true면 기본 도형 빌드를 건너뛰도록 호출측에 지시.
+    private static bool TryAttachVisualOverride(GameObject root, GameObject visualPrefab)
+    {
+        if (visualPrefab == null) return false;
+
+        GameObject visual = (GameObject)PrefabUtility.InstantiatePrefab(visualPrefab);
+        if (visual == null) visual = Object.Instantiate(visualPrefab);
+        visual.name = visualPrefab.name;
+        visual.transform.SetParent(root.transform, false);
+        visual.transform.localPosition = Vector3.zero;
+        visual.transform.localRotation = Quaternion.identity;
+
+        // 루트가 모든 물리를 담당하므로 시각 자식의 콜라이더/리지드바디는 제거
+        foreach (var col in visual.GetComponentsInChildren<Collider>(true))
+            Object.DestroyImmediate(col);
+        foreach (var rb in visual.GetComponentsInChildren<Rigidbody>(true))
+            Object.DestroyImmediate(rb);
+
+        return true;
     }
 
     // 시각 전용 자식 프리미티브(콜라이더 제거)
