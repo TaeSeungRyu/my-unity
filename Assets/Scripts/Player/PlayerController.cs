@@ -9,6 +9,8 @@ public class PlayerController : MonoBehaviour
     [Header("이동 설정")]
     public float moveSpeed = 6f;          // 수평 이동 속도
     public float jumpForce = 8f;          // 점프 힘
+    public float doubleJumpMultiplier = 1.25f; // 2단 점프 힘 배수 (기존 점프 x 1.25)
+    public int maxJumps = 2;              // 착지 전까지 가능한 최대 점프 횟수
     public float rotationSpeed = 12f;     // 이동 방향으로 회전하는 속도
 
     [Header("스톰프(밟기) 판정")]
@@ -18,6 +20,7 @@ public class PlayerController : MonoBehaviour
     private CapsuleCollider capsule;
     private bool isGrounded;        // 현재 프레임의 지면 접촉 여부
     private bool groundedThisFrame; // OnCollisionStay에서 매 프레임 갱신
+    private int jumpsUsed;          // 현재 공중에서 사용한 점프 횟수(착지 시 0으로 리셋)
     private Camera cam;
 
     void Awake()
@@ -41,6 +44,9 @@ public class PlayerController : MonoBehaviour
         // 매 FixedUpdate 시작 시 접지 플래그를 확정하고 다음 프레임을 위해 리셋
         isGrounded = groundedThisFrame;
         groundedThisFrame = false;
+
+        // 착지하면 점프 카운터 리셋 (2단 점프 사용 가능 상태로 복귀)
+        if (isGrounded) jumpsUsed = 0;
 
         if (GameManager.Instance != null && GameManager.Instance.IsGameOver)
         {
@@ -101,14 +107,22 @@ public class PlayerController : MonoBehaviour
         Keyboard kb = Keyboard.current;
         if (kb == null) return;
 
-        if (isGrounded && kb.spaceKey.wasPressedThisFrame)
-        {
-            // 기존 수직 속도를 0으로 리셋해 일정한 점프 높이 보장
-            Vector3 v = rb.linearVelocity;
-            v.y = 0f;
-            rb.linearVelocity = v;
-            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-        }
+        if (!kb.spaceKey.wasPressedThisFrame) return;
+
+        // 착지 중에 누르면 jumpsUsed=0 → 1번째 점프 소모. 공중에서 다시 누르면 2번째.
+        // 절벽에서 떨어지며 처음 누르면 1번째 점프로 소비되어 총 2회 사용 가능.
+        if (jumpsUsed >= maxJumps) return;
+
+        // 2번째 점프부터는 기존 점프 힘의 doubleJumpMultiplier(1.25)배
+        float force = jumpsUsed == 0 ? jumpForce : jumpForce * doubleJumpMultiplier;
+
+        // 기존 수직 속도를 0으로 리셋해 일정한 점프 높이 보장 (낙하 중 2단 점프도 깔끔하게)
+        Vector3 v = rb.linearVelocity;
+        v.y = 0f;
+        rb.linearVelocity = v;
+        rb.AddForce(Vector3.up * force, ForceMode.Impulse);
+
+        jumpsUsed++;
     }
 
     // 적과의 충돌: 위에서 밟았으면 스톰프, 아니면 피해

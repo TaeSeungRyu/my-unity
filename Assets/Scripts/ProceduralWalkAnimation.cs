@@ -15,8 +15,8 @@ public class ProceduralWalkAnimation : MonoBehaviour
     [Tooltip("최대 걷기 속도 도달 시 팔/다리 스윙 각도(도)")]
     public float swingAmplitude = 45f;
 
-    [Tooltip("걷는 중 위상 변화율 가중치. 클수록 빠르게 흔든다.")]
-    public float swingFrequency = 6f;
+    [Tooltip("걷는 중 위상 변화율 가중치. 클수록 빠르게 흔든다. (속도 6m/s일 때 약 1.8Hz)")]
+    public float swingFrequency = 1.8f;
 
     [Tooltip("정지 시 미세 흔들림 각도(도) — 살아있는 느낌용")]
     public float idleAmplitude = 3f;
