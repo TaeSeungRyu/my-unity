@@ -47,18 +47,25 @@ public static class VisualOverridesAutoAssign
             return;
         }
 
-        // Assets/Models 하위에서 GameObject 에셋(FBX/GLB/OBJ/Prefab) 수집
+        // Assets/Models 하위에서 GameObject 에셋(FBX/GLB/OBJ/Prefab) 수집.
+        // Kenney 팩처럼 동일 모델이 여러 포맷으로 중복 배포되는 경우가 많으므로
+        // FBX > GLB > Prefab > OBJ 순으로 우선하고 DAE는 호환성 이슈로 제외한다.
         string[] guids = AssetDatabase.FindAssets("t:GameObject", new[] { ModelsFolder });
         List<Candidate> candidates = new List<Candidate>();
         foreach (var guid in guids)
         {
             string path = AssetDatabase.GUIDToAssetPath(guid);
+            string ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
+            if (ext == ".dae") continue; // DAE는 스킨/피벗 파싱이 불안정한 경우가 있음
             GameObject go = AssetDatabase.LoadAssetAtPath<GameObject>(path);
             if (go == null) continue;
-            // 파일명 기반 매칭이 가장 직관적이므로 path에서 파일명만 추출해 비교
             string fileName = System.IO.Path.GetFileNameWithoutExtension(path).ToLowerInvariant();
-            candidates.Add(new Candidate { name = fileName, asset = go, path = path });
+            candidates.Add(new Candidate { name = fileName, asset = go, path = path, ext = ext });
         }
+        // 동일 베이스네임의 중복(같은 모델 다른 포맷)은 확장자 우선순위로 정렬해 앞의 것만 쓰이게 함
+        candidates = candidates
+            .OrderBy(c => ExtPriority(c.ext))
+            .ToList();
 
         if (candidates.Count == 0)
         {
@@ -76,23 +83,41 @@ public static class VisualOverridesAutoAssign
         List<string> report = new List<string>();
         HashSet<string> usedAssetPaths = new HashSet<string>();
 
+        // 1차 패스: 키워드 매칭
+        Dictionary<string, Match> results = new Dictionary<string, Match>();
         foreach (var (slot, keywords) in SlotKeywords)
         {
-            // 이미 다른 슬롯이 쓴 파일은 중복 할당하지 않도록 제외
             var pool = candidates.Where(c => !usedAssetPaths.Contains(c.path)).ToList();
             var match = FindBestMatch(pool, keywords);
+            results[slot] = match;
+            if (match.asset != null) usedAssetPaths.Add(match.path);
+        }
 
-            AssignSlot(vo, slot, match.asset);
+        // 2차 패스: 매칭 실패한 슬롯에 character-a, -b, -c … 같은 알파벳 캐릭터 풀백 할당.
+        // Kenney Blocky Characters는 a~z 이름만 있어 키워드 매칭이 안 되므로
+        // 아직 안 쓰인 character-* FBX를 이름순으로 돌려쓴다. (단, flyer는 제외 — UFO여야 함)
+        var alphabetPool = candidates
+            .Where(c => !usedAssetPaths.Contains(c.path) && c.name.StartsWith("character-"))
+            .OrderBy(c => c.name)
+            .ToList();
+        int alphaIdx = 0;
+        foreach (var slot in new[] { "player", "walker", "chaser", "jumper", "tank" })
+        {
+            if (results[slot].asset != null) continue;
+            if (alphaIdx >= alphabetPool.Count) break;
+            var c = alphabetPool[alphaIdx++];
+            results[slot] = new Match { asset = c.asset, path = c.path, keyword = "alphabet-fallback" };
+            usedAssetPaths.Add(c.path);
+        }
 
-            if (match.asset != null)
-            {
-                usedAssetPaths.Add(match.path);
-                report.Add($"  [O] {slot,-8} <- {match.asset.name}   (키워드: '{match.keyword}')");
-            }
+        foreach (var (slot, _) in SlotKeywords)
+        {
+            var m = results[slot];
+            AssignSlot(vo, slot, m.asset);
+            if (m.asset != null)
+                report.Add($"  [O] {slot,-8} <- {m.asset.name}   (이유: '{m.keyword}')");
             else
-            {
                 report.Add($"  [X] {slot,-8} <- (매칭 없음)");
-            }
         }
 
         EditorUtility.SetDirty(vo);
@@ -116,6 +141,21 @@ public static class VisualOverridesAutoAssign
         public string name;      // 소문자 파일명 (확장자 제외)
         public GameObject asset; // FBX/GLB/Prefab을 GameObject로 참조
         public string path;      // 에셋 경로
+        public string ext;       // 소문자 확장자 (예: ".fbx")
+    }
+
+    // 확장자 우선순위: 낮을수록 먼저. FBX가 가장 안정적이라 최우선.
+    private static int ExtPriority(string ext)
+    {
+        switch (ext)
+        {
+            case ".fbx":    return 0;
+            case ".glb":    return 1;
+            case ".gltf":   return 2;
+            case ".prefab": return 3;
+            case ".obj":    return 4;
+            default:        return 10;
+        }
     }
 
     private struct Match

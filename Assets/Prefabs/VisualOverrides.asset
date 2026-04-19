@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: VisualOverrides
   m_EditorClassIdentifier: Assembly-CSharp::VisualOverrides
   playerVisual: {fileID: 919132149155446097, guid: 3c170001db8e40b40aa488e32816c345, type: 3}
-  walkerVisual: {fileID: 0}
-  chaserVisual: {fileID: 0}
-  jumperVisual: {fileID: 0}
-  flyerVisual: {fileID: 919132149155446097, guid: 096033dfed77bd047a0739283ea69225, type: 3}
-  tankVisual: {fileID: 0}
+  walkerVisual: {fileID: 919132149155446097, guid: 39a32fe2223d353458dbe228e3845311, type: 3}
+  chaserVisual: {fileID: 919132149155446097, guid: 843455b401c9bab46825a723b03145cb, type: 3}
+  jumperVisual: {fileID: 919132149155446097, guid: 58b58f0022e26484298737b8ec1f14b6, type: 3}
+  flyerVisual: {fileID: 919132149155446097, guid: b81aa1143f7925445b2065e488af1d70, type: 3}
+  tankVisual: {fileID: 919132149155446097, guid: 9c8b38969efa95b4eba1dd71b3b6a7ff, type: 3}

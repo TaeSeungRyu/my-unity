@@ -3,7 +3,9 @@
     "allow": [
       "Bash(awk '/^GameObject:/,/^---/ {print}' \"D:/unity-editor/workspace/My project/Assets/Scenes/SampleScene.unity\")",
       "Bash(awk '/^--- !u!1 &/ {obj=$NF} /m_Name:/ && NF==2 {name=$NF} /m_Mesh: {fileID: 10/ {print name \" -> \" $0; name=\"\"}')",
-      "Bash(awk '/^--- !u!1 &192595209/,/^--- !u!1 &219531294/' \"D:/unity-editor/workspace/My project/Assets/Scenes/SampleScene.unity\")"
+      "Bash(awk '/^--- !u!1 &192595209/,/^--- !u!1 &219531294/' \"D:/unity-editor/workspace/My project/Assets/Scenes/SampleScene.unity\")",
+      "Bash(grep \"\\\\.fbx$\")",
+      "Bash(awk 'length >= 4')"
     ]
   }
 }

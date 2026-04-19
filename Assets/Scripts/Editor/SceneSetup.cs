@@ -424,6 +424,14 @@ public static class SceneSetup
         foreach (var rb in visual.GetComponentsInChildren<Rigidbody>(true))
             Object.DestroyImmediate(rb);
 
+        // 스킨드 메시 = 뼈대 있는 캐릭터. 애니메이션 클립이 없어도 팔/다리가
+        // 움직이도록 루트에 간이 프로시저럴 워크 애니메이션을 부착.
+        if (visual.GetComponentInChildren<SkinnedMeshRenderer>() != null &&
+            root.GetComponent<ProceduralWalkAnimation>() == null)
+        {
+            root.AddComponent<ProceduralWalkAnimation>();
+        }
+
         return true;
     }
 
