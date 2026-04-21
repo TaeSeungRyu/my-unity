@@ -1,18 +1,13 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// 공중에 있을 때 플레이어의 포물선 궤적을 예측해 지면에 착지 예상 지점을 원반으로 표시.
-// 착지점 근처에 스톰프 가능 적이 있으면 해당 적을 하이라이트 색으로 바꿔 타겟임을 알린다.
+// 공중에 있을 때 플레이어의 포물선 궤적을 예측해, 착지 예상 지점 근처에
+// 스톰프 가능한 적이 있으면 그 적을 하이라이트 색으로 바꿔 타겟임을 알린다.
+// 착지점에 스톰프 대상이 없으면 아무것도 표시하지 않는다.
 // 플레이어 루트에 부착 (Rigidbody 필요).
 [RequireComponent(typeof(Rigidbody))]
 public class LandingIndicator : MonoBehaviour
 {
-    [Header("표시")]
-    public float indicatorRadius = 0.6f;                         // 원반 반지름 (미터)
-    public Color safeColor   = new Color(0.2f, 0.9f, 1f, 1f);    // 비어있는 착지점 색
-    public Color stompColor  = new Color(1f, 0.95f, 0.3f, 1f);   // 적이 타겟일 때 색
-    public float groundLift  = 0.03f;                            // 지면 Z-파이팅 방지용 살짝 띄우기
-
     [Header("판정")]
     public float enemyHighlightRadius = 0.9f; // 착지점으로부터 이 수평 거리 이내 적을 타겟으로 인정
     public float maxPredictTime       = 4f;   // 이 시간 내 착지하지 않으면 미표시
@@ -20,79 +15,33 @@ public class LandingIndicator : MonoBehaviour
     public LayerMask groundMask = ~0;
 
     private Rigidbody rb;
-    private GameObject indicator;
-    private Renderer indicatorRenderer;
-    private Material indicatorMaterial;
     private readonly List<EnemyBase> highlighted = new List<EnemyBase>();
 
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
-        BuildIndicator();
-    }
-
-    void BuildIndicator()
-    {
-        // Cylinder를 y축으로 납작하게 눌러 원반 모양으로 사용 (Quad를 누이는 것보다 양면에서 잘 보임)
-        indicator = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        indicator.name = "LandingIndicator";
-
-        // 플레이어에 딸린 물리/콜라이더 충돌 방지
-        Collider c = indicator.GetComponent<Collider>();
-        if (c != null) Destroy(c);
-
-        indicator.transform.SetParent(null);
-        indicator.transform.localScale = new Vector3(indicatorRadius * 2f, 0.01f, indicatorRadius * 2f);
-
-        indicatorRenderer = indicator.GetComponent<Renderer>();
-
-        // URP Lit이 우선, 그 다음 BiRP Standard, 최후 Unlit/Color
-        Shader sh = Shader.Find("Universal Render Pipeline/Unlit");
-        if (sh == null) sh = Shader.Find("Unlit/Color");
-        if (sh == null) sh = Shader.Find("Universal Render Pipeline/Lit");
-        if (sh == null) sh = Shader.Find("Standard");
-
-        indicatorMaterial = new Material(sh);
-        indicatorRenderer.sharedMaterial = indicatorMaterial;
-        ApplyIndicatorColor(safeColor);
-
-        indicator.SetActive(false);
     }
 
     void OnDestroy()
     {
         ClearHighlights();
-        if (indicator != null) Destroy(indicator);
     }
 
     void OnDisable()
     {
         ClearHighlights();
-        if (indicator != null) indicator.SetActive(false);
     }
 
     void LateUpdate()
     {
         if (rb == null) return;
 
-        // 접지 상태면 숨김
-        if (IsGrounded())
+        // 접지 상태거나 착지 예측 불가면 모든 하이라이트 해제
+        if (IsGrounded() || !PredictLanding(out Vector3 landing))
         {
-            indicator.SetActive(false);
             ClearHighlights();
             return;
         }
-
-        if (!PredictLanding(out Vector3 landing))
-        {
-            indicator.SetActive(false);
-            ClearHighlights();
-            return;
-        }
-
-        indicator.SetActive(true);
-        indicator.transform.position = landing + Vector3.up * groundLift;
-        indicator.transform.rotation = Quaternion.identity;
 
         RefreshEnemyHighlights(landing);
     }
@@ -142,7 +91,7 @@ public class LandingIndicator : MonoBehaviour
         ClearHighlights();
 
         EnemyBase[] enemies = Object.FindObjectsByType<EnemyBase>(FindObjectsSortMode.None);
-        bool anyStomp = false;
+        float r2 = enemyHighlightRadius * enemyHighlightRadius;
 
         for (int i = 0; i < enemies.Length; i++)
         {
@@ -152,15 +101,12 @@ public class LandingIndicator : MonoBehaviour
             Vector3 ep = e.transform.position;
             float dx = ep.x - landing.x;
             float dz = ep.z - landing.z;
-            if (dx * dx + dz * dz <= enemyHighlightRadius * enemyHighlightRadius)
+            if (dx * dx + dz * dz <= r2)
             {
                 e.SetStompHighlight(true);
                 highlighted.Add(e);
-                anyStomp = true;
             }
         }
-
-        ApplyIndicatorColor(anyStomp ? stompColor : safeColor);
     }
 
     void ClearHighlights()
@@ -168,12 +114,5 @@ public class LandingIndicator : MonoBehaviour
         for (int i = 0; i < highlighted.Count; i++)
             if (highlighted[i] != null) highlighted[i].SetStompHighlight(false);
         highlighted.Clear();
-    }
-
-    void ApplyIndicatorColor(Color col)
-    {
-        if (indicatorMaterial == null) return;
-        if (indicatorMaterial.HasProperty("_BaseColor")) indicatorMaterial.SetColor("_BaseColor", col);
-        if (indicatorMaterial.HasProperty("_Color"))     indicatorMaterial.SetColor("_Color", col);
     }
 }

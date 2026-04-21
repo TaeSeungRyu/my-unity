@@ -15,8 +15,8 @@ public class PlayerController : MonoBehaviour
 
     [Header("스톰프(밟기) 판정")]
     public float stompBounceForce = 6f;       // 적을 밟은 뒤 튕겨 오를 힘
-    public float stompMinFallSpeed = 0.5f;    // 이 이상으로 아래로 떨어지고 있어야 스톰프 인정 (양수값)
-    public float stompAboveMargin  = 0.15f;   // 플레이어 발바닥이 적 상단보다 이만큼 위여야 스톰프
+    public float stompMinFallSpeed = 0.05f;   // 이 이상으로 아래로 떨어지고 있어야 스톰프 인정 (양수값) — 작을수록 타이밍 관대
+    public float stompAboveMargin  = 0.35f;   // 플레이어 발바닥이 적 상단 아래로 이만큼까지 내려가도 스톰프 인정 — 클수록 위치 관대
 
     [Header("피격 쿨다운")]
     public float damageCooldown = 0.8f;       // 측면 접촉 연속 피해 방지
