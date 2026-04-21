@@ -15,8 +15,8 @@ public class ProceduralWalkAnimation : MonoBehaviour
     [Tooltip("최대 걷기 속도 도달 시 팔/다리 스윙 각도(도)")]
     public float swingAmplitude = 45f;
 
-    [Tooltip("걷는 중 위상 변화율 가중치. 클수록 빠르게 흔든다. (속도 6m/s일 때 약 1.8Hz)")]
-    public float swingFrequency = 1.8f;
+    [Tooltip("한 걸음(반 주기)에 이동하는 거리(m). 작을수록 짧고 빠른 보폭. 게임 캐릭터는 1.5m 정도가 자연스럽다")]
+    public float strideLength = 1.5f;
 
     [Tooltip("정지 시 미세 흔들림 각도(도) — 살아있는 느낌용")]
     public float idleAmplitude = 3f;
@@ -118,7 +118,11 @@ public class ProceduralWalkAnimation : MonoBehaviour
         float speed = new Vector2(v.x, v.z).magnitude;
         float walking = Mathf.Clamp01(speed / walkSpeedReference);
         float amp  = Mathf.Lerp(idleAmplitude, swingAmplitude, walking);
-        float freq = Mathf.Lerp(idleFrequency, swingFrequency * Mathf.Max(speed, 0.5f), walking);
+
+        // 걷는 중엔 이동 거리 기반(sin 한 주기 = 걸음 두 번)으로 위상을 전진시켜 보폭과 스윙을 일치시키고,
+        // 정지 시엔 idleFrequency로 미세하게 흔든다.
+        float walkPhaseRate = strideLength > 0.0001f ? speed * Mathf.PI / strideLength : 0f;
+        float freq = Mathf.Lerp(idleFrequency, walkPhaseRate, walking);
         phase += Time.deltaTime * freq;
 
         float s = Mathf.Sin(phase) * amp;
