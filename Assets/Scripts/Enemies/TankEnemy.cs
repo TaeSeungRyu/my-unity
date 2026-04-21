@@ -44,7 +44,9 @@ public class TankEnemy : EnemyBase
             if (rends[i] == null) continue;
             Color c = originalColors[i] * 0.6f;
             c.a = 1f;
-            rends[i].material.color = c;
+            Material m = rends[i].material;
+            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
+            if (m.HasProperty("_Color"))     m.SetColor("_Color", c);
             originalColors[i] = c;
         }
     }

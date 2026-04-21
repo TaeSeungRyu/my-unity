@@ -187,6 +187,7 @@ public static class SceneSetup
         prb.mass = 1f;
 
         player.AddComponent<PlayerController>();
+        player.AddComponent<LandingIndicator>();
 
         if (TryAttachVisualOverride(player, overrides != null ? overrides.playerVisual : null))
             return player;

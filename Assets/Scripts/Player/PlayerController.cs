@@ -15,6 +15,11 @@ public class PlayerController : MonoBehaviour
 
     [Header("스톰프(밟기) 판정")]
     public float stompBounceForce = 6f;       // 적을 밟은 뒤 튕겨 오를 힘
+    public float stompMinFallSpeed = 0.5f;    // 이 이상으로 아래로 떨어지고 있어야 스톰프 인정 (양수값)
+    public float stompAboveMargin  = 0.15f;   // 플레이어 발바닥이 적 상단보다 이만큼 위여야 스톰프
+
+    [Header("피격 쿨다운")]
+    public float damageCooldown = 0.8f;       // 측면 접촉 연속 피해 방지
 
     private Rigidbody rb;
     private CapsuleCollider capsule;
@@ -22,6 +27,7 @@ public class PlayerController : MonoBehaviour
     private bool groundedThisFrame; // OnCollisionStay에서 매 프레임 갱신
     private int jumpsUsed;          // 현재 공중에서 사용한 점프 횟수(착지 시 0으로 리셋)
     private Camera cam;
+    private float lastDamageTime = -999f;
 
     void Awake()
     {
@@ -56,11 +62,15 @@ public class PlayerController : MonoBehaviour
         HandleMovement();
     }
 
-    // 적이 아닌 오브젝트와의 접촉 중 법선이 위를 향하면 지면으로 간주
+    // 지면/적 접촉 공통 처리. 적이면 스톰프/피해 판정, 아니면 접지 여부 갱신.
     private void OnCollisionStay(Collision collision)
     {
-        // 적과의 접촉은 지면으로 치지 않음(스톰프 연속 점프는 별도 로직에서 처리)
-        if (collision.collider.GetComponentInParent<EnemyBase>() != null) return;
+        EnemyBase enemy = collision.collider.GetComponentInParent<EnemyBase>();
+        if (enemy != null)
+        {
+            HandleEnemyContact(collision, enemy);
+            return;
+        }
 
         for (int i = 0; i < collision.contactCount; i++)
         {
@@ -125,22 +135,26 @@ public class PlayerController : MonoBehaviour
         jumpsUsed++;
     }
 
-    // 적과의 충돌: 위에서 밟았으면 스톰프, 아니면 피해
+    // 적과의 충돌: 위에서 떨어지며 밟았으면 스톰프, 아니면 피해
     private void OnCollisionEnter(Collision collision)
     {
         EnemyBase enemy = collision.collider.GetComponentInParent<EnemyBase>();
-        if (enemy == null) return;
+        if (enemy != null) HandleEnemyContact(collision, enemy);
+    }
 
-        // 접촉점의 평균 법선으로 "위에서 밟았는지" 판정
-        Vector3 normal = Vector3.zero;
-        for (int i = 0; i < collision.contactCount; i++) normal += collision.GetContact(i).normal;
-        normal.Normalize();
+    private void HandleEnemyContact(Collision collision, EnemyBase enemy)
+    {
+        if (enemy.IsDead) return;
 
-        // 법선이 위쪽을 향하고(우리가 위에 있고), 플레이어가 아래로 떨어지는 중이며, 날 수 없는 적일 때만 스톰프 성공
-        bool comingDown = rb.linearVelocity.y <= 0.1f;
-        bool fromAbove  = normal.y > 0.5f;
+        // 스톰프 조건: (1) 플레이어 발바닥이 적의 상단보다 위에 있고
+        //             (2) 실제로 아래로 낙하 중이며
+        //             (3) 적이 스톰프 가능할 때
+        float playerBottomY = transform.position.y + capsule.center.y - capsule.height * 0.5f;
+        float enemyTopY     = collision.collider.bounds.max.y;
+        bool aboveEnemy = playerBottomY > enemyTopY - stompAboveMargin;
+        bool falling    = rb.linearVelocity.y < -stompMinFallSpeed;
 
-        if (fromAbove && comingDown && enemy.CanBeStomped)
+        if (aboveEnemy && falling && enemy.CanBeStomped)
         {
             enemy.OnStomped();
             // 플레이어를 살짝 튕겨 올려 연속 점프가 가능하도록
@@ -148,12 +162,13 @@ public class PlayerController : MonoBehaviour
             vel.y = 0f;
             rb.linearVelocity = vel;
             rb.AddForce(Vector3.up * stompBounceForce, ForceMode.Impulse);
+            return;
         }
-        else
-        {
-            // 측면/아래에서 부딪힌 경우 플레이어가 피해를 입음
-            enemy.OnHitPlayer(this);
-        }
+
+        // 측면/아래 접촉: 쿨다운 기반으로 피해
+        if (Time.time - lastDamageTime < damageCooldown) return;
+        lastDamageTime = Time.time;
+        enemy.OnHitPlayer(this);
     }
 
     // 플레이어 위치 초기화(게임 재시작 시 사용)
