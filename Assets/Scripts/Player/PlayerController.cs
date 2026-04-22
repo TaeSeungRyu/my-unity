@@ -17,6 +17,7 @@ public class PlayerController : MonoBehaviour
     public float stompBounceForce = 6f;       // 적을 밟은 뒤 튕겨 오를 힘
     public float stompMinFallSpeed = 0.05f;   // 이 이상으로 아래로 떨어지고 있어야 스톰프 인정 (양수값) — 작을수록 타이밍 관대
     public float stompAboveMargin  = 0.35f;   // 플레이어 발바닥이 적 상단 아래로 이만큼까지 내려가도 스톰프 인정 — 클수록 위치 관대
+    public float stompAssistRadius = 0.6f;    // 발 아래 이 반경 안에 스톰프 가능 적이 있으면 콜라이더 접촉 없이도 스톰프 인정 — 0 이하면 어시스트 비활성
 
     [Header("피격 쿨다운")]
     public float damageCooldown = 0.8f;       // 측면 접촉 연속 피해 방지
@@ -28,6 +29,7 @@ public class PlayerController : MonoBehaviour
     private int jumpsUsed;          // 현재 공중에서 사용한 점프 횟수(착지 시 0으로 리셋)
     private Camera cam;
     private float lastDamageTime = -999f;
+    private static readonly Collider[] stompAssistBuffer = new Collider[16];
 
     void Awake()
     {
@@ -60,6 +62,7 @@ public class PlayerController : MonoBehaviour
             return;
         }
         HandleMovement();
+        TryStompAssist();
     }
 
     // 지면/적 접촉 공통 처리. 적이면 스톰프/피해 판정, 아니면 접지 여부 갱신.
@@ -156,12 +159,7 @@ public class PlayerController : MonoBehaviour
 
         if (aboveEnemy && falling && enemy.CanBeStomped)
         {
-            enemy.OnStomped();
-            // 플레이어를 살짝 튕겨 올려 연속 점프가 가능하도록
-            Vector3 vel = rb.linearVelocity;
-            vel.y = 0f;
-            rb.linearVelocity = vel;
-            rb.AddForce(Vector3.up * stompBounceForce, ForceMode.Impulse);
+            DoStomp(enemy);
             return;
         }
 
@@ -169,6 +167,54 @@ public class PlayerController : MonoBehaviour
         if (Time.time - lastDamageTime < damageCooldown) return;
         lastDamageTime = Time.time;
         enemy.OnHitPlayer(this);
+    }
+
+    // 실제 스톰프 처리 + 반동 점프. 직접 접촉(HandleEnemyContact)과 근접 어시스트(TryStompAssist) 모두가 호출.
+    private void DoStomp(EnemyBase enemy)
+    {
+        enemy.OnStomped();
+        Vector3 vel = rb.linearVelocity;
+        vel.y = 0f;
+        rb.linearVelocity = vel;
+        rb.AddForce(Vector3.up * stompBounceForce, ForceMode.Impulse);
+    }
+
+    // 낙하 중 발 아래 반경 내에 스톰프 가능 적이 있으면 콜라이더 접촉 없이도 스톰프 인정.
+    // 수평 정렬이 조금 어긋나 실제 캡슐끼리 스치지 않는 상황을 구제하기 위한 보조 판정.
+    private void TryStompAssist()
+    {
+        if (stompAssistRadius <= 0f) return;
+        if (isGrounded) return;
+        if (rb.linearVelocity.y >= -stompMinFallSpeed) return;
+
+        float playerBottomY = transform.position.y + capsule.center.y - capsule.height * 0.5f;
+        Vector3 center = new Vector3(transform.position.x, playerBottomY, transform.position.z);
+
+        int count = Physics.OverlapSphereNonAlloc(center, stompAssistRadius, stompAssistBuffer, ~0, QueryTriggerInteraction.Ignore);
+        EnemyBase bestEnemy = null;
+        float bestDrop = float.PositiveInfinity; // 발바닥과 적 상단 높이 차가 가장 작은(=가장 근접한) 적 선택
+
+        for (int i = 0; i < count; i++)
+        {
+            Collider col = stompAssistBuffer[i];
+            if (col == null || col.attachedRigidbody == rb) continue;
+
+            EnemyBase enemy = col.GetComponentInParent<EnemyBase>();
+            if (enemy == null || enemy.IsDead || !enemy.CanBeStomped) continue;
+
+            float enemyTopY = col.bounds.max.y;
+            // 발이 적 상단 위~stompAboveMargin 아래 구간일 때만 인정 (측면 접촉 구제는 금지)
+            if (playerBottomY < enemyTopY - stompAboveMargin) continue;
+
+            float drop = Mathf.Abs(playerBottomY - enemyTopY);
+            if (drop < bestDrop)
+            {
+                bestDrop = drop;
+                bestEnemy = enemy;
+            }
+        }
+
+        if (bestEnemy != null) DoStomp(bestEnemy);
     }
 
     // 플레이어 위치 초기화(게임 재시작 시 사용)
