@@ -48,6 +48,8 @@ public class PlayerController : MonoBehaviour
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         cam = Camera.main;
         if (cam != null) camFollow = cam.GetComponent<CameraFollow>();
+        // 씬 재로드 후 정적 카운터가 남아 있을 수 있어 초기화
+        hitStopDepth = 0;
     }
 
     void Update()
@@ -189,11 +191,37 @@ public class PlayerController : MonoBehaviour
     // 실제 스톰프 처리 + 반동 점프. 직접 접촉(HandleEnemyContact)과 근접 어시스트(TryStompAssist) 모두가 호출.
     private void DoStomp(EnemyBase enemy)
     {
+        // 콤보 먼저 증가시킨 뒤 OnStomped를 호출 — Die() 안의 AddScore가 새 콤보 배수를 받도록.
+        if (GameManager.Instance != null) GameManager.Instance.IncrementCombo();
+
         enemy.OnStomped();
+
         Vector3 vel = rb.linearVelocity;
         vel.y = 0f;
         rb.linearVelocity = vel;
         rb.AddForce(Vector3.up * stompBounceForce, ForceMode.Impulse);
+
+        // 타격감: 짧은 히트 스톱 + 카메라 흔들림 (콤보가 늘면 살짝 강해짐)
+        int combo = GameManager.Instance != null ? GameManager.Instance.Combo : 1;
+        float magBoost = 1f + 0.15f * Mathf.Min(combo - 1, 6); // 7콤보 이상 캡
+        if (camFollow != null) camFollow.Shake(shakeDuration, shakeMagnitude * magBoost);
+        StartCoroutine(HitStop(hitStopDuration, hitStopTimeScale));
+    }
+
+    // Time.timeScale을 잠깐 낮춰 강한 임팩트 느낌을 만든다. 코루틴이 겹쳐도 깊이 카운트로 복원.
+    private IEnumerator HitStop(float duration, float scale)
+    {
+        if (hitStopDepth == 0) Time.timeScale = scale;
+        hitStopDepth++;
+        yield return new WaitForSecondsRealtime(duration);
+        hitStopDepth--;
+        if (hitStopDepth <= 0)
+        {
+            hitStopDepth = 0;
+            // 게임 오버 중에는 GameManager가 timeScale=0을 잡고 있으므로 건드리지 않음
+            if (GameManager.Instance == null || !GameManager.Instance.IsGameOver)
+                Time.timeScale = 1f;
+        }
     }
 
     // 낙하 중 발 아래 반경 내에 스톰프 가능 적이 있으면 콜라이더 접촉 없이도 스톰프 인정.

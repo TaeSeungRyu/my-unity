@@ -91,11 +91,11 @@ public static class SceneSetup
         sp.playAreaMax = new Vector3( half, 0f,  half);
         sp.entries = new System.Collections.Generic.List<EnemySpawner.SpawnEntry>
         {
-            new EnemySpawner.SpawnEntry { prefab = t1, weight = 4f },   // 워커 빈도 최대
-            new EnemySpawner.SpawnEntry { prefab = t2, weight = 2f },
-            new EnemySpawner.SpawnEntry { prefab = t3, weight = 1.5f },
-            new EnemySpawner.SpawnEntry { prefab = t4, weight = 1.5f },
-            new EnemySpawner.SpawnEntry { prefab = t5, weight = 1f },   // 탱크 최소
+            new EnemySpawner.SpawnEntry { prefab = t1, weight = 3f },    // 워커
+            new EnemySpawner.SpawnEntry { prefab = t2, weight = 2f },    // 체이서
+            new EnemySpawner.SpawnEntry { prefab = t3, weight = 1.5f },  // 점퍼
+            new EnemySpawner.SpawnEntry { prefab = t4, weight = 3.5f },  // 플라이어 — 공중 변화 위해 상향
+            new EnemySpawner.SpawnEntry { prefab = t5, weight = 1f },    // 탱크 최소
         };
 
         // ---------- UI ----------
@@ -470,6 +470,13 @@ public static class SceneSetup
         TMP_Text sc = CreateTMPText(canvasGo.transform, "ScoreText", "Score: 0",
             new Vector2(1, 1), new Vector2(1, 1), new Vector2(-20, -20), TextAlignmentOptions.TopRight, 36);
         uim.scoreText = sc;
+
+        // 상단 중앙: Combo (콤보 ≤1이면 숨김)
+        TMP_Text cb = CreateTMPText(canvasGo.transform, "ComboText", "",
+            new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -80), TextAlignmentOptions.Center, 56);
+        cb.color = Color.white;
+        uim.comboText = cb;
+        cb.gameObject.SetActive(false);
 
         // 게임오버 패널 (반투명 검정 배경)
         GameObject panel = new GameObject("GameOverPanel");
