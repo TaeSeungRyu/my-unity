@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -22,14 +23,22 @@ public class PlayerController : MonoBehaviour
     [Header("피격 쿨다운")]
     public float damageCooldown = 0.8f;       // 측면 접촉 연속 피해 방지
 
+    [Header("타격감 (스톰프 시)")]
+    public float hitStopDuration  = 0.06f;    // 히트 스톱 길이(초, 비스케일)
+    public float hitStopTimeScale = 0.05f;    // 히트 스톱 동안의 timeScale
+    public float shakeDuration    = 0.18f;    // 카메라 흔들림 길이(초)
+    public float shakeMagnitude   = 0.25f;    // 카메라 흔들림 강도(콤보가 늘면 약간 강해짐)
+
     private Rigidbody rb;
     private CapsuleCollider capsule;
     private bool isGrounded;        // 현재 프레임의 지면 접촉 여부
     private bool groundedThisFrame; // OnCollisionStay에서 매 프레임 갱신
     private int jumpsUsed;          // 현재 공중에서 사용한 점프 횟수(착지 시 0으로 리셋)
     private Camera cam;
+    private CameraFollow camFollow;
     private float lastDamageTime = -999f;
     private static readonly Collider[] stompAssistBuffer = new Collider[16];
+    private static int hitStopDepth; // 동시 히트 스톱이 겹쳐도 정확히 복원되도록 카운트
 
     void Awake()
     {
@@ -38,6 +47,7 @@ public class PlayerController : MonoBehaviour
         // 캐릭터가 넘어지지 않도록 X,Z 축 회전을 고정
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         cam = Camera.main;
+        if (cam != null) camFollow = cam.GetComponent<CameraFollow>();
     }
 
     void Update()
@@ -50,8 +60,15 @@ public class PlayerController : MonoBehaviour
     void FixedUpdate()
     {
         // 매 FixedUpdate 시작 시 접지 플래그를 확정하고 다음 프레임을 위해 리셋
+        bool wasGrounded = isGrounded;
         isGrounded = groundedThisFrame;
         groundedThisFrame = false;
+
+        // 착지 순간(공중 → 지면): 콤보 종료
+        if (isGrounded && !wasGrounded)
+        {
+            if (GameManager.Instance != null) GameManager.Instance.ResetCombo();
+        }
 
         // 착지하면 점프 카운터 리셋 (2단 점프 사용 가능 상태로 복귀)
         if (isGrounded) jumpsUsed = 0;

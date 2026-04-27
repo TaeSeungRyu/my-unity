@@ -6,11 +6,12 @@ using UnityEngine;
 public class FlyerEnemy : EnemyBase
 {
     [Header("비행 설정")]
-    public float flyHeight    = 2.5f; // 지면으로부터 유지할 높이
-    public float bobAmplitude = 0.3f; // 위아래로 떠다니는 폭
-    public float bobFrequency = 2f;   // 떠다니는 주기
-    public float chaseSpeed   = 3f;   // 수평 추적 속도
-    public float verticalLerp = 3f;   // 기준 높이로 수렴하는 속도
+    // 플레이어 점프 1회로 위에 닿을 수 있는 높이 — jumpForce=8, gravity=9.81 기준 발 apex≈3.36m
+    public float flyHeight    = 1.8f;  // 지면으로부터 유지할 높이 (콜라이더 상단≈2.3m)
+    public float bobAmplitude = 0.15f; // 위아래로 떠다니는 폭 — 작아야 스톰프 타이밍이 안정
+    public float bobFrequency = 1.2f;  // 떠다니는 주기 (느리게)
+    public float chaseSpeed   = 2f;    // 수평 추적 속도 (플레이어보다 충분히 느리게)
+    public float verticalLerp = 3f;    // 기준 높이로 수렴하는 속도
 
     private Transform target;
     private float     baseY;

@@ -312,8 +312,9 @@ public static class SceneSetup
     {
         GameObject g = CreateEnemyRoot("Enemy_Flyer", parent);
         BoxCollider c = g.AddComponent<BoxCollider>();
-        c.size = new Vector3(1.4f, 0.5f, 1.4f);
-        c.center = new Vector3(0f, 0.25f, 0f);
+        // 두께를 조금 키워 위에서 떨어질 때 스톰프 판정 창이 넓어지도록
+        c.size = new Vector3(1.5f, 0.7f, 1.5f);
+        c.center = new Vector3(0f, 0.35f, 0f);
         g.AddComponent<FlyerEnemy>();
         // FlyerEnemy.Awake에서 useGravity=false로 설정됨
 

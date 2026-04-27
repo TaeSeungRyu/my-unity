@@ -10,14 +10,16 @@ public class GameManager : MonoBehaviour
     [Header("게임 설정")]
     public int maxHealth = 3;
 
-    public int CurrentHealth { get; private set; }
-    public int Score         { get; private set; }
-    public bool IsGameOver   { get; private set; }
+    public int  CurrentHealth { get; private set; }
+    public int  Score         { get; private set; }
+    public int  Combo         { get; private set; } // 착지 전까지 누적된 연속 스톰프 횟수
+    public bool IsGameOver    { get; private set; }
 
     // UI가 구독할 이벤트
     public event Action<int> OnHealthChanged;
     public event Action<int> OnScoreChanged;
-    public event Action<int> OnGameOver;   // 최종 점수 전달
+    public event Action<int> OnComboChanged; // 콤보 카운터 변경
+    public event Action<int> OnGameOver;     // 최종 점수 전달
 
     void Awake()
     {
@@ -31,6 +33,7 @@ public class GameManager : MonoBehaviour
     {
         CurrentHealth = maxHealth;
         Score         = 0;
+        Combo         = 0;
         IsGameOver    = false;
     }
 
@@ -41,15 +44,35 @@ public class GameManager : MonoBehaviour
         CurrentHealth = Mathf.Max(0, CurrentHealth - amount);
         OnHealthChanged?.Invoke(CurrentHealth);
 
+        // 피격 시 콤보 끊김
+        ResetCombo();
+
         if (CurrentHealth <= 0) TriggerGameOver();
     }
 
-    // 적 처치 시 점수 가산
+    // 적 처치 시 점수 가산. 현재 콤보 배수가 곱해진다(콤보 0이면 1배).
     public void AddScore(int amount)
     {
         if (IsGameOver) return;
-        Score += amount;
+        int multiplier = Mathf.Max(1, Combo);
+        Score += amount * multiplier;
         OnScoreChanged?.Invoke(Score);
+    }
+
+    // 스톰프 한 번이 성공할 때마다 호출 — 처치 여부와 무관하게 누적.
+    public void IncrementCombo()
+    {
+        if (IsGameOver) return;
+        Combo++;
+        OnComboChanged?.Invoke(Combo);
+    }
+
+    // 착지/피격 시 호출
+    public void ResetCombo()
+    {
+        if (Combo == 0) return;
+        Combo = 0;
+        OnComboChanged?.Invoke(0);
     }
 
     private void TriggerGameOver()
